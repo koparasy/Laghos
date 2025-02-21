@@ -173,6 +173,7 @@ build_mfem(){
   pushd mfem 
   # git fetch --tags
   # git checkout ${mfem_version} 
+  make distclean
   if [[ "$use_mneme" == "on" ]]; then
   CXX=mpicxx make phip HIP_ARCH=gfx90a HIP_FLAGS="-fpass-plugin=${LOCAL_DIR}/lib64/libregdeviceir.so" METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
   else
@@ -204,7 +205,7 @@ pushd deps/
 BASE_DIR=$(pwd)
 LOCAL_DIR=$(pwd)/usr/${SYS_TYPE}/
 mkdir -p ${LOCAL_DIR}
-
+mneme_config=$(realpath user.mk)
 with_mneme=$1
 
 
@@ -227,9 +228,9 @@ echo ${LLVM_INSTALL_DIR}
 #echo "Building MNEME"
 #build_mneme ${BASE_DIR} ${LOCAL_DIR} sc-25 
 #echo "Building HYPRE"
-build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0 $with_mneme
+#build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0 $with_mneme
 echo "Building METIS"
 #build_metis ${BASE_DIR} ${LOCAL_DIR} 
 echo "Building MFEM"
-#build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7
+build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7 $with_mneme
 
