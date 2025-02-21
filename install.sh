@@ -11,17 +11,16 @@ build_spdlog(){
 
   if [[ ! -d "spdlog" ]]; then
     git clone --branch ${spdlog_version} --depth 1 https://github.com/gabime/spdlog.git
-    git switch -c ${spdlog_version}
   fi
-  spdlog_src=$(pwd)/spdlog
-  echo "src dir is ${spdlog_src}"
+
+  src_dir=$(pwd)/spdlog
   build_dir=build-spdlog
-  echo "Current dir is $(pwd)"
+
   cmake -B $build_dir \
   -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
   -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
   -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-  ${spdlog_src}
+  ${src_dir}
   cmake --build $build_dir -j && cmake --install $build_dir 
 }
 
@@ -29,16 +28,14 @@ build_proteus() {
   BASE_DIR=$1
   LOCAL_DIR=$2
   proteus_version=$3
-  echo $PROTEUS_ENABLE_HIP $PROTEUS_ENABLE_CUDA
 
   if [[ ! -d "proteus" ]]; then
     git clone --depth 1 --branch $proteus_version git@github.com:Olympus-HPC/proteus.git
   fi
   
-  proteus_src_dir=$(pwd)/proteus/
-
-  mkdir -p build-proteus
+  src_dir=$(pwd)/proteus/
   build_dir=build-proteus
+
   cmake -B $build_dir \
   -DBUILD_SHARED=Off \
   -DLLVM_INSTALL_DIR=${LLVM_INSTALL_DIR} \
@@ -49,36 +46,49 @@ build_proteus() {
   -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
   -DENABLE_TESTS=Off \
   -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-  $proteus_src_dir
+  $src_dir
   cmake --build $build_dir -j && cmake --install $build_dir 
-  popd
 }
 
-build_mneme(){
+build_mneme() {
   BASE_DIR=$1
   LOCAL_DIR=$2
   mneme_version=$3
-  if [ ! -d Mneme ]; then
-    git@github.com:Olympus-HPC/Mneme.git
+  echo "Current dir is $(pwd)"
+
+  if [[ ! -d "Mneme" ]]; then
+    git clone --depth 1 --branch $mneme_version git@github.com:Olympus-HPC/Mneme.git
   fi
-  pushd Mneme
-  git checkout $mneme_version
+  
+  src_dir=$(pwd)/Mneme/
+  build_dir=build-mneme
+
+  cmake -B $build_dir \
+    -DCMAKE_BUILD_TYPE=Relwithdebinfo \
+    -Dproteus_DIR=${LOCAL_DIR}\
+    -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
+    -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
+    -DLLVM_INSTALL_DIR=${LLVM_INSTALL_DIR} \
+    -DMNEME_ENABLE_HIP=On \
+    -DMNEME_ENABLE_DEBUG=On \
+    -DMNEME_ENABLE_TESTS=On \
+    -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
+    $src_dir
+  cmake --build $build_dir -j && cmake --install $build_dir 
 }
+
 
 build_hypre(){
   BASE_DIR=$1
   LOCAL_DIR=$2
   hypre_version=$3
   if [ ! -d hypre ]; then
-    git clone https://github.com/hypre-space/hypre.git
+    git clone --depth 1 --branch $hypre_version https://github.com/hypre-space/hypre.git
   fi
 
   pushd hypre
-  #git fetch --tags
-  #git checkout $hypre_version 
   pushd src
-
-
   rocm_path=$(realpath $(dirname $(which hipcc))/../)
   rocm_mpi_path=$(realpath $(dirname $(which mpicc))/../)
   #make distclean
@@ -190,9 +200,16 @@ export LLVM_INSTALL_DIR=${ROCM_PATH}/llvm
 echo ${LLVM_INSTALL_DIR}
 
 
+echo "Building SPDLOG"
 build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
+echo "Building PROTEUS"
 build_proteus ${BASE_DIR} ${LOCAL_DIR} main 
-#build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0
-#build_metis ${BASE_DIR} ${LOCAL_DIR} 
-#build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7
+echo "Building MNEME"
+build_mneme ${BASE_DIR} ${LOCAL_DIR} sc-25 
+echo "Building HYPRE"
+build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0
+echo "Building METIS"
+build_metis ${BASE_DIR} ${LOCAL_DIR} 
+echo "Building MFEM"
+build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7
 
