@@ -101,6 +101,7 @@ build_hypre(){
     --enable-fortran \
     --with-hip \
     --enable-mneme
+    
   make -j
   make check
   make install
@@ -113,13 +114,15 @@ build_metis(){
   LOCAL_DIR=$2
   currDir=$(pwd)
   if [ ! -d metis ]; then 
-    curl -OL https://github.com/mfem/tpls/raw/gh-pages/metis-4.0.3.tar.gz
-    tar xzf metis-4.0.3.tar.gz
+    git clone --depth 1 https://github.com/mfem/tpls.git
+    tar xzf tpls/metis-4.0.3.tar.gz
     mv metis-4.0.3 metis
+    rm -rf tpls
   fi
 
   pushd metis
-  make -C Lib OPTFLAGS=-Wno-error=implicit-function-declaration
+
+  CC=amdclang CXX=amdclang++ CPP=amdclang++ make -C Lib OPTFLAGS=-Wno-error=implicit-function-declaration
   cp libmetis.a $LOCAL_DIR/lib/  
   popd
 
@@ -154,27 +157,27 @@ build_mfem(){
   LOCAL_DIR=$2
   mfem_version=$3
   if [ ! -d mfem ]; then
-    git clone https://github.com/mfem/mfem.git
+    git clone --branch ${mfem_version} --depth 1 https://github.com/mfem/mfem.git
   fi
   pushd mfem 
   # git fetch --tags
   # git checkout ${mfem_version} 
-  # CXX=mpicxx make phip HIP_ARCH=gfx90a METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
+  CXX=mpicxx make phip HIP_ARCH=gfx90a METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
   #popd
-  mkdir build
-  pushd build
-  CXX=mpicxx cmake \
-    -DCMAKE_BUILD_TYPE=Relwithdebinfo \
-    -DMFEM_USE_HIP=ON \
-    -DMFEM_USE_MPI=ON \
-    -DMETIS_DIR=${LOCAL_DIR} \
-    -DMETIS_INCLUDE_DIR=${LOCAL_DIR}/include \
-    -DParMETIS_DIR=${LOCAL_DIR} \
-    -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-    -DCMAKE_HIP_ARCHITECTURES="gfx90a" \
-    -DCMAKE_HIP_PLATFORM="amd" \
-    -DHYPRE_DIR=${LOCAL_DIR} \
-    ..
+  #mkdir build
+  #pushd build
+  #CXX=mpicxx cmake \
+  #  -DCMAKE_BUILD_TYPE=Relwithdebinfo \
+  #  -DMFEM_USE_HIP=ON \
+  #  -DMFEM_USE_MPI=ON \
+  #  -DMETIS_DIR=${LOCAL_DIR} \
+  #  -DMETIS_INCLUDE_DIR=${LOCAL_DIR}/include \
+  #  -DParMETIS_DIR=${LOCAL_DIR} \
+  #  -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
+  #  -DCMAKE_HIP_ARCHITECTURES="gfx90a" \
+  #  -DCMAKE_HIP_PLATFORM="amd" \
+  #  -DHYPRE_DIR=${LOCAL_DIR} \
+  #  ..
   make -j
   make install
   popd
@@ -200,16 +203,16 @@ export LLVM_INSTALL_DIR=${ROCM_PATH}/llvm
 echo ${LLVM_INSTALL_DIR}
 
 
-echo "Building SPDLOG"
-build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
-echo "Building PROTEUS"
-build_proteus ${BASE_DIR} ${LOCAL_DIR} main 
-echo "Building MNEME"
-build_mneme ${BASE_DIR} ${LOCAL_DIR} sc-25 
-echo "Building HYPRE"
-build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0
+#echo "Building SPDLOG"
+#build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
+#echo "Building PROTEUS"
+#build_proteus ${BASE_DIR} ${LOCAL_DIR} main 
+#echo "Building MNEME"
+#build_mneme ${BASE_DIR} ${LOCAL_DIR} sc-25 
+#echo "Building HYPRE"
+#build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0
 echo "Building METIS"
-build_metis ${BASE_DIR} ${LOCAL_DIR} 
+#build_metis ${BASE_DIR} ${LOCAL_DIR} 
 echo "Building MFEM"
 build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7
 
