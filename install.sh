@@ -2,6 +2,69 @@ ml load  cmake/3.29.2
 ml load rocm/6.3
 ml load rocmcc/6.3.1-cce-18.0.1h-magic
 
+set -e
+
+build_spdlog(){
+  BASE_DIR=$1
+  LOCAL_DIR=$2
+  spdlog_version=$3
+
+  if [[ ! -d "spdlog" ]]; then
+    git clone --branch ${spdlog_version} --depth 1 https://github.com/gabime/spdlog.git
+    git switch -c ${spdlog_version}
+  fi
+  spdlog_src=$(pwd)/spdlog
+  echo "src dir is ${spdlog_src}"
+  build_dir=build-spdlog
+  echo "Current dir is $(pwd)"
+  cmake -B $build_dir \
+  -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
+  -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
+  -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
+  ${spdlog_src}
+  cmake --build $build_dir -j && cmake --install $build_dir 
+}
+
+build_proteus() {
+  BASE_DIR=$1
+  LOCAL_DIR=$2
+  proteus_version=$3
+  echo $PROTEUS_ENABLE_HIP $PROTEUS_ENABLE_CUDA
+
+  if [[ ! -d "proteus" ]]; then
+    git clone --depth 1 --branch $proteus_version git@github.com:Olympus-HPC/proteus.git
+  fi
+  
+  proteus_src_dir=$(pwd)/proteus/
+
+  mkdir -p build-proteus
+  build_dir=build-proteus
+  cmake -B $build_dir \
+  -DBUILD_SHARED=Off \
+  -DLLVM_INSTALL_DIR=${LLVM_INSTALL_DIR} \
+  -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
+  -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
+  -DPROTEUS_ENABLE_HIP=On \
+  -DPROTEUS_ENABLE_CUDA=Off \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
+  -DENABLE_TESTS=Off \
+  -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
+  $proteus_src_dir
+  cmake --build $build_dir -j && cmake --install $build_dir 
+  popd
+}
+
+build_mneme(){
+  BASE_DIR=$1
+  LOCAL_DIR=$2
+  mneme_version=$3
+  if [ ! -d Mneme ]; then
+    git@github.com:Olympus-HPC/Mneme.git
+  fi
+  pushd Mneme
+  git checkout $mneme_version
+}
+
 build_hypre(){
   BASE_DIR=$1
   LOCAL_DIR=$2
@@ -108,11 +171,28 @@ build_mfem(){
   popd
 }
 
+mkdir -p deps/
+pushd deps/
 BASE_DIR=$(pwd)
 LOCAL_DIR=$(pwd)/usr/${SYS_TYPE}/
 mkdir -p ${LOCAL_DIR}
 
-build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0
-build_metis ${BASE_DIR} ${LOCAL_DIR} 
-build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7
+
+if [ -z "${ROCM_PATH}" ]; then
+  echo "ROCM_PATHis not set or is empty"
+  echo "... cannot build proteus without ROCM_PATH"
+  exit
+else
+  echo "ROCM_PATH is '$ROCM_PATH'"
+fi
+ 
+export LLVM_INSTALL_DIR=${ROCM_PATH}/llvm
+echo ${LLVM_INSTALL_DIR}
+
+
+build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
+build_proteus ${BASE_DIR} ${LOCAL_DIR} main 
+#build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0
+#build_metis ${BASE_DIR} ${LOCAL_DIR} 
+#build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7
 
