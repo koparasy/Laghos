@@ -83,6 +83,7 @@ build_hypre(){
   BASE_DIR=$1
   LOCAL_DIR=$2
   hypre_version=$3
+  use_mneme=$4
   if [ ! -d hypre ]; then
     git clone --depth 1 --branch $hypre_version https://github.com/hypre-space/hypre.git
   fi
@@ -91,16 +92,25 @@ build_hypre(){
   pushd src
   rocm_path=$(realpath $(dirname $(which hipcc))/../)
   rocm_mpi_path=$(realpath $(dirname $(which mpicc))/../)
-  #make distclean
-  #-fpass-plugin=/usr/workspace/koparasy/Laghos-all/usr/toss_4_x86_64_ib_cray/lib64/libregdeviceir.so 
-  CUFLAGS="-O3 -std=c++14 -x hip --offload-arch=gfx90a" CC=mpicc CXX=mpicxx CXXFLAGS="std=c++17 -fPIC" CFLAGS="-fPIC" ./configure \
+  make distclean
+  if [[ "$use_mneme" == "on" ]]; then
+    echo "we use mneme"
+  CUFLAGS="-fpass-plugin=${LOCAL_DIR}/lib64/libregdeviceir.so -O3 -std=c++14 -x hip --offload-arch=gfx90a" CC=mpicc CXX=mpicxx CXXFLAGS="std=c++17 -fPIC" CFLAGS="-fPIC" ./configure \
     --prefix=$LOCAL_DIR \
     --with-MPI-libs="mpi mpich" \
     --with-MPI-lib-dirs=${rocm_mpi_path}/lib \
     --with-MPI-include=${rocm_mpi_path}/include \
     --enable-fortran \
-    --with-hip \
-    --enable-mneme
+    --with-hip
+  else
+    CUFLAGS="-O3 -std=c++14 -x hip --offload-arch=gfx90a" CC=mpicc CXX=mpicxx CXXFLAGS="std=c++17 -fPIC" CFLAGS="-fPIC" ./configure \
+    --prefix=$LOCAL_DIR \
+    --with-MPI-libs="mpi mpich" \
+    --with-MPI-lib-dirs=${rocm_mpi_path}/lib \
+    --with-MPI-include=${rocm_mpi_path}/include \
+    --enable-fortran \
+    --with-hip
+  fi
     
   make -j
   make check
@@ -156,13 +166,18 @@ build_mfem(){
   BASE_DIR=$1
   LOCAL_DIR=$2
   mfem_version=$3
+  use_mneme=$4
   if [ ! -d mfem ]; then
     git clone --branch ${mfem_version} --depth 1 https://github.com/mfem/mfem.git
   fi
   pushd mfem 
   # git fetch --tags
   # git checkout ${mfem_version} 
-  CXX=mpicxx make phip HIP_ARCH=gfx90a METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
+  if [[ "$use_mneme" == "on" ]]; then
+  CXX=mpicxx make phip HIP_ARCH=gfx90a HIP_FLAGS="-fpass-plugin=${LOCAL_DIR}/lib64/libregdeviceir.so" METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
+  else
+  CXX=mpicxx make phip HIP_ARCH=gfx90a  METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
+  fi
   #popd
   #mkdir build
   #pushd build
@@ -190,6 +205,8 @@ BASE_DIR=$(pwd)
 LOCAL_DIR=$(pwd)/usr/${SYS_TYPE}/
 mkdir -p ${LOCAL_DIR}
 
+with_mneme=$1
+
 
 if [ -z "${ROCM_PATH}" ]; then
   echo "ROCM_PATHis not set or is empty"
@@ -210,9 +227,9 @@ echo ${LLVM_INSTALL_DIR}
 #echo "Building MNEME"
 #build_mneme ${BASE_DIR} ${LOCAL_DIR} sc-25 
 #echo "Building HYPRE"
-#build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0
+build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0 $with_mneme
 echo "Building METIS"
 #build_metis ${BASE_DIR} ${LOCAL_DIR} 
 echo "Building MFEM"
-build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7
+#build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7
 
