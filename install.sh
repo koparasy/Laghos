@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ml load  cmake/3.29.2
 ml load rocm/6.3
 ml load rocmcc/6.3.1-cce-18.0.1h-magic
@@ -17,10 +19,10 @@ build_spdlog(){
   build_dir=build-spdlog
 
   cmake -B $build_dir \
-  -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
-  -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
-  -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-  ${src_dir}
+    -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
+    -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
+    -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
+    ${src_dir}
   cmake --build $build_dir -j && cmake --install $build_dir 
 }
 
@@ -30,23 +32,23 @@ build_proteus() {
   proteus_version=$3
 
   if [[ ! -d "proteus" ]]; then
-    git clone --depth 1 --branch $proteus_version git@github.com:Olympus-HPC/proteus.git
+    git clone --depth 1 --branch $proteus_version https://github.com/Olympus-HPC/proteus.git
   fi
   
   src_dir=$(pwd)/proteus/
   build_dir=build-proteus
 
   cmake -B $build_dir \
-  -DBUILD_SHARED=Off \
-  -DLLVM_INSTALL_DIR=${LLVM_INSTALL_DIR} \
-  -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
-  -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
-  -DPROTEUS_ENABLE_HIP=On \
-  -DPROTEUS_ENABLE_CUDA=Off \
-  -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
-  -DENABLE_TESTS=Off \
-  -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-  $src_dir
+    -DBUILD_SHARED=Off \
+    -DLLVM_INSTALL_DIR=${LLVM_INSTALL_DIR} \
+    -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
+    -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
+    -DPROTEUS_ENABLE_HIP=On \
+    -DPROTEUS_ENABLE_CUDA=Off \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
+    -DENABLE_TESTS=Off \
+    -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
+    $src_dir
   cmake --build $build_dir -j && cmake --install $build_dir 
 }
 
@@ -57,7 +59,7 @@ build_mneme() {
   echo "Current dir is $(pwd)"
 
   if [[ ! -d "Mneme" ]]; then
-    git clone --depth 1 --branch $mneme_version git@github.com:Olympus-HPC/Mneme.git
+    git clone --depth 1 --branch $mneme_version https://github.com/Olympus-HPC/Mneme.git
   fi
   
   src_dir=$(pwd)/Mneme/
@@ -92,26 +94,26 @@ build_hypre(){
   pushd src
   rocm_path=$(realpath $(dirname $(which hipcc))/../)
   rocm_mpi_path=$(realpath $(dirname $(which mpicc))/../)
-  make distclean
+  make distclean 2>/dev/null || true
   if [[ "$use_mneme" == "on" ]]; then
     echo "we use mneme"
-  CUFLAGS="-fpass-plugin=${LOCAL_DIR}/lib64/libregdeviceir.so -O3 -std=c++14 -x hip --offload-arch=gfx90a" CC=mpicc CXX=mpicxx CXXFLAGS="std=c++17 -fPIC" CFLAGS="-fPIC" ./configure \
-    --prefix=$LOCAL_DIR \
-    --with-MPI-libs="mpi mpich" \
-    --with-MPI-lib-dirs=${rocm_mpi_path}/lib \
-    --with-MPI-include=${rocm_mpi_path}/include \
-    --enable-fortran \
-    --with-hip
+    CUFLAGS="-fpass-plugin=${LOCAL_DIR}/lib64/libregdeviceir.so -O3 -std=c++14 -x hip --offload-arch=$ROCM_ARCH" CC=mpicc CXX=mpicxx CXXFLAGS="std=c++17 -fPIC" CFLAGS="-fPIC" ./configure \
+      --prefix=$LOCAL_DIR \
+      --with-MPI-libs="mpi mpich" \
+      --with-MPI-lib-dirs=${rocm_mpi_path}/lib \
+      --with-MPI-include=${rocm_mpi_path}/include \
+      --enable-fortran \
+      --with-hip
   else
-    CUFLAGS="-O3 -std=c++14 -x hip --offload-arch=gfx90a" CC=mpicc CXX=mpicxx CXXFLAGS="std=c++17 -fPIC" CFLAGS="-fPIC" ./configure \
-    --prefix=$LOCAL_DIR \
-    --with-MPI-libs="mpi mpich" \
-    --with-MPI-lib-dirs=${rocm_mpi_path}/lib \
-    --with-MPI-include=${rocm_mpi_path}/include \
-    --enable-fortran \
-    --with-hip
+    CUFLAGS="-O3 -std=c++14 -x hip --offload-arch=$ROCM_ARCH" CC=mpicc CXX=mpicxx CXXFLAGS="std=c++17 -fPIC" CFLAGS="-fPIC" ./configure \
+      --prefix=$LOCAL_DIR \
+      --with-MPI-libs="mpi mpich" \
+      --with-MPI-lib-dirs=${rocm_mpi_path}/lib \
+      --with-MPI-include=${rocm_mpi_path}/include \
+      --enable-fortran \
+      --with-hip
   fi
-    
+
   make -j
   make check
   make install
@@ -131,11 +133,11 @@ build_metis(){
   fi
 
   pushd metis
-
+  # The Makefile in metis is broken
+  sed -i 's/^CC = cc$/CC ?= cc/' Makefile.in
   CC=amdclang CXX=amdclang++ CPP=amdclang++ make -C Lib OPTFLAGS=-Wno-error=implicit-function-declaration
   cp libmetis.a $LOCAL_DIR/lib/  
   popd
-
 }
 
 build_parmetis(){
@@ -170,30 +172,15 @@ build_mfem(){
   if [ ! -d mfem ]; then
     git clone --branch ${mfem_version} --depth 1 https://github.com/mfem/mfem.git
   fi
-  pushd mfem 
+  pushd mfem
   # git fetch --tags
   # git checkout ${mfem_version} 
   make distclean
   if [[ "$use_mneme" == "on" ]]; then
-  CXX=mpicxx make phip HIP_ARCH=gfx90a HIP_FLAGS="-fpass-plugin=${LOCAL_DIR}/lib64/libregdeviceir.so" METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
+    CXX=mpicxx make phip HIP_ARCH=$ROCM_ARCH HIP_FLAGS="-fpass-plugin=${LOCAL_DIR}/lib64/libregdeviceir.so" METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
   else
-  CXX=mpicxx make phip HIP_ARCH=gfx90a  METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
+    CXX=mpicxx make phip HIP_ARCH=$ROCM_ARCH  METIS_DIR=$LOCAL_DIR/lib -j MPICXX=mpicxx HYPRE_OPT=-I${LOCAL_DIR}/include HYPRE_LIB=-L${LOCAL_DIR}/lib
   fi
-  #popd
-  #mkdir build
-  #pushd build
-  #CXX=mpicxx cmake \
-  #  -DCMAKE_BUILD_TYPE=Relwithdebinfo \
-  #  -DMFEM_USE_HIP=ON \
-  #  -DMFEM_USE_MPI=ON \
-  #  -DMETIS_DIR=${LOCAL_DIR} \
-  #  -DMETIS_INCLUDE_DIR=${LOCAL_DIR}/include \
-  #  -DParMETIS_DIR=${LOCAL_DIR} \
-  #  -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-  #  -DCMAKE_HIP_ARCHITECTURES="gfx90a" \
-  #  -DCMAKE_HIP_PLATFORM="amd" \
-  #  -DHYPRE_DIR=${LOCAL_DIR} \
-  #  ..
   make -j
   make install
   popd
@@ -210,7 +197,7 @@ with_mneme=$1
 
 
 if [ -z "${ROCM_PATH}" ]; then
-  echo "ROCM_PATHis not set or is empty"
+  echo "ROCM_PATH is not set or is empty"
   echo "... cannot build proteus without ROCM_PATH"
   exit
 else
@@ -218,19 +205,26 @@ else
 fi
  
 export LLVM_INSTALL_DIR=${ROCM_PATH}/llvm
-echo ${LLVM_INSTALL_DIR}
+echo "LLVM_INSTALL_DIR = ${LLVM_INSTALL_DIR}"
 
+export ROCM_ARCH=$(rocm_agent_enumerator | sed -n 1p)
 
-#echo "Building SPDLOG"
-#build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
-#echo "Building PROTEUS"
-#build_proteus ${BASE_DIR} ${LOCAL_DIR} main 
-#echo "Building MNEME"
-#build_mneme ${BASE_DIR} ${LOCAL_DIR} sc-25 
-#echo "Building HYPRE"
-#build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0 $with_mneme
+if [ -z "${ROCM_ARCH}" ]; then
+  echo "ROCM_ARCH is not set or is empty"
+  exit
+else
+  echo "ROCM_ARCH = ${ROCM_ARCH}"
+fi
+
+echo "Building SPDLOG"
+build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
+echo "Building PROTEUS"
+build_proteus ${BASE_DIR} ${LOCAL_DIR} features/mneme-integrations 
+echo "Building MNEME"
+build_mneme ${BASE_DIR} ${LOCAL_DIR} features/specialize
+echo "Building HYPRE"
+build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0 $with_mneme
 echo "Building METIS"
-#build_metis ${BASE_DIR} ${LOCAL_DIR} 
+build_metis ${BASE_DIR} ${LOCAL_DIR} 
 echo "Building MFEM"
 build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7 $with_mneme
-
