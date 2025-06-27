@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+usage () {
+  echo "Usage: $0 use_mneme=on|off"
+}
+
+
+if [[ $# -ne 1 ]]; then
+  echo "Error: incorrect number of arguments"
+  usage
+  exit 1
+fi
+
 ml load  cmake/3.29.2
 ml load rocm/6.3
 ml load rocmcc/6.3.1-cce-18.0.1h-magic
@@ -187,6 +198,7 @@ build_mfem(){
   popd
 }
 
+
 mkdir -p deps/
 pushd deps/
 BASE_DIR=$(pwd)
@@ -221,7 +233,7 @@ build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0
 echo "Building PROTEUS"
 build_proteus ${BASE_DIR} ${LOCAL_DIR} features/mneme-integrations 
 echo "Building MNEME"
-build_mneme ${BASE_DIR} ${LOCAL_DIR} features/specialize
+build_mneme ${BASE_DIR} ${LOCAL_DIR} develop
 echo "Building HYPRE"
 build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0 $with_mneme
 echo "Building METIS"
