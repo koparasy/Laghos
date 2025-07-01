@@ -85,10 +85,12 @@ build_mneme() {
     -DMNEME_ENABLE_HIP=On \
     -DMNEME_ENABLE_DEBUG=On \
     -DMNEME_ENABLE_TESTS=On \
+    -DMNEME_ENABLE_AUTOTUNE=On \
     -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
     $src_dir
-  cmake --build $build_dir -j && cmake --install $build_dir 
+  cmake --build $build_dir -j && cmake --install $build_dir
+  cp $build_dir/src/python/libmneme.so $src_dir/python/mneme/
 }
 
 
