@@ -15,7 +15,8 @@ else
 fi
 
 # Before running Laghos (updated based on the compiler used)
-export LD_LIBRARY_PATH=/usr/tce/packages/cce/cce-18.0.1-magic/cce/x86_64/lib/:$LD_LIBRARY_PATH
+MNEME_LIBS="$(pwd)/deps/usr/${SYS_TYPE}/lib64/"
+export LD_LIBRARY_PATH=/usr/tce/packages/cce/cce-18.0.1-magic/cce/x86_64/lib/:$MNEME_LIBS:$LD_LIBRARY_PATH
 
 DEVICE="hip"
 

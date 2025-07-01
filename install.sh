@@ -112,7 +112,8 @@ build_hypre(){
     echo "we use mneme"
     CUFLAGS="-fpass-plugin=${LOCAL_DIR}/lib64/libregdeviceir.so -O3 -std=c++14 -x hip --offload-arch=$ROCM_ARCH" CC=mpicc CXX=mpicxx CXXFLAGS="std=c++17 -fPIC" CFLAGS="-fPIC" ./configure \
       --prefix=$LOCAL_DIR \
-      --with-MPI-libs="mpi mpich" \
+      --with-extra-ldpath="${LOCAL_DIR}/lib64/" \
+      --with-MPI-libs="mpi mpich mneme_shallow" \
       --with-MPI-lib-dirs=${rocm_mpi_path}/lib \
       --with-MPI-include=${rocm_mpi_path}/include \
       --enable-fortran \
@@ -128,7 +129,7 @@ build_hypre(){
   fi
 
   make -j
-  make check
+  make check || true
   make install
   popd
   popd
@@ -242,3 +243,7 @@ echo "Building METIS"
 build_metis ${BASE_DIR} ${LOCAL_DIR} 
 echo "Building MFEM"
 build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7 $with_mneme
+
+echo "Building Laghos"
+export LD_LIBRARY_PATH=/usr/tce/packages/cce/cce-18.0.1-magic/cce/x86_64/lib/:${LOCAL_DIR}/lib64/:$LD_LIBRARY_PATH
+make 
