@@ -245,5 +245,4 @@ echo "Building MFEM"
 build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7 $with_mneme
 
 echo "Building Laghos"
-export LD_LIBRARY_PATH=/usr/tce/packages/cce/cce-18.0.1-magic/cce/x86_64/lib/:${LOCAL_DIR}/lib64/:$LD_LIBRARY_PATH
-make 
+LDFLAGS=${LOCAL_DIR}/lib64/libmneme_shallow.so make
