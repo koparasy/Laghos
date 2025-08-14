@@ -90,6 +90,7 @@ build_mneme() {
     -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
     $src_dir
   cmake --build $build_dir -j && cmake --install $build_dir
+
   cp $build_dir/src/python/libmneme.so $src_dir/python/mneme/
 }
 
@@ -208,7 +209,8 @@ BASE_DIR=$(pwd)
 LOCAL_DIR=$(pwd)/usr/${SYS_TYPE}/
 mkdir -p ${LOCAL_DIR}
 mneme_config=$(realpath user.mk)
-with_mneme=$1
+with_mneme="$1"
+mneme_version="develop"
 
 
 if [ -z "${ROCM_PATH}" ]; then
@@ -219,8 +221,9 @@ else
   echo "ROCM_PATH is '$ROCM_PATH'"
 fi
  
-export LLVM_INSTALL_DIR=${ROCM_PATH}/llvm
-echo "LLVM_INSTALL_DIR = ${LLVM_INSTALL_DIR}"
+# export LLVM_INSTALL_DIR=${ROCM_PATH}/llvm
+export LLVM_INSTALL_DIR=${ROCM_PATH} # if using pip
+echo "LLVM_INSTALL_DIR = ${ROCM_PATH}"
 
 export ROCM_ARCH=$(rocm_agent_enumerator | sed -n 1p)
 
@@ -231,12 +234,33 @@ else
   echo "ROCM_ARCH = ${ROCM_ARCH}"
 fi
 
-echo "Building SPDLOG"
-build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
-echo "Building PROTEUS"
-build_proteus ${BASE_DIR} ${LOCAL_DIR} features/mneme-integrations 
-echo "Building MNEME"
-build_mneme ${BASE_DIR} ${LOCAL_DIR} develop
+if [[ "$with_mneme" == "on" ]]; then
+  # echo "Building SPDLOG"
+  # build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
+  # echo "Building PROTEUS"
+  # build_proteus ${BASE_DIR} ${LOCAL_DIR} features/mneme-integrations 
+  # echo "Building MNEME"
+  # build_mneme ${BASE_DIR} ${LOCAL_DIR} develop
+
+  if [[ ! -d "mneme-env" || ! -f "./mneme-env/bin/activate" ]]; then
+    python3 -m venv mneme-env
+    echo "Created virtual env $(pwd)/mneme-env"
+  fi
+  source ./mneme-env/bin/activate
+  echo "activated virtual env $(pwd)/mneme-env"
+
+  if [[ ! -d "Mneme" ]]; then
+    git clone --depth 1 --branch $mneme_version https://github.com/Olympus-HPC/Mneme.git
+  fi
+
+  pip install -e Mneme
+  mkdir -p ${LOCAL_DIR}/lib64
+  
+  echo "Copying Mneme libs to ${LOCAL_DIR}/lib64"
+  cp -r Mneme/build/lib/lib64/*.so ${LOCAL_DIR}/lib64
+  cp Mneme/build/src/python/libmneme.so Mneme/python/mneme/
+fi
+
 echo "Building HYPRE"
 build_hypre ${BASE_DIR} ${LOCAL_DIR} v2.32.0 $with_mneme
 echo "Building METIS"
