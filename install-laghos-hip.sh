@@ -11,89 +11,11 @@ if [[ $# -ne 1 ]]; then
   exit 1
 fi
 
-ml load  cmake/3.29.2
+ml load cmake/3.29.2
 ml load rocm/6.3
 ml load rocmcc/6.3.1-cce-18.0.1h-magic
 
 set -e
-
-build_spdlog(){
-  BASE_DIR=$1
-  LOCAL_DIR=$2
-  spdlog_version=$3
-
-  if [[ ! -d "spdlog" ]]; then
-    git clone --branch ${spdlog_version} --depth 1 https://github.com/gabime/spdlog.git
-  fi
-
-  src_dir=$(pwd)/spdlog
-  build_dir=build-spdlog
-
-  cmake -B $build_dir \
-    -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
-    -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
-    -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-    ${src_dir}
-  cmake --build $build_dir -j && cmake --install $build_dir 
-}
-
-build_proteus() {
-  BASE_DIR=$1
-  LOCAL_DIR=$2
-  proteus_version=$3
-
-  if [[ ! -d "proteus" ]]; then
-    git clone --depth 1 --branch $proteus_version https://github.com/Olympus-HPC/proteus.git
-  fi
-  
-  src_dir=$(pwd)/proteus/
-  build_dir=build-proteus
-
-  cmake -B $build_dir \
-    -DBUILD_SHARED=Off \
-    -DLLVM_INSTALL_DIR=${LLVM_INSTALL_DIR} \
-    -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
-    -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
-    -DPROTEUS_ENABLE_HIP=On \
-    -DPROTEUS_ENABLE_CUDA=Off \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
-    -DENABLE_TESTS=Off \
-    -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-    $src_dir
-  cmake --build $build_dir -j && cmake --install $build_dir 
-}
-
-build_mneme() {
-  BASE_DIR=$1
-  LOCAL_DIR=$2
-  mneme_version=$3
-  echo "Current dir is $(pwd)"
-
-  if [[ ! -d "Mneme" ]]; then
-    git clone --depth 1 --branch $mneme_version https://github.com/Olympus-HPC/Mneme.git
-  fi
-  
-  src_dir=$(pwd)/Mneme/
-  build_dir=build-mneme
-
-  cmake -B $build_dir \
-    -DCMAKE_BUILD_TYPE=Relwithdebinfo \
-    -Dproteus_DIR=${LOCAL_DIR}\
-    -DCMAKE_C_COMPILER=${LLVM_INSTALL_DIR}/bin/clang \
-    -DCMAKE_CXX_COMPILER=${LLVM_INSTALL_DIR}/bin/clang++ \
-    -DLLVM_INSTALL_DIR=${LLVM_INSTALL_DIR} \
-    -DMNEME_ENABLE_HIP=On \
-    -DMNEME_ENABLE_DEBUG=On \
-    -DMNEME_ENABLE_TESTS=On \
-    -DMNEME_ENABLE_AUTOTUNE=On \
-    -DCMAKE_INSTALL_PREFIX=${LOCAL_DIR} \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
-    $src_dir
-  cmake --build $build_dir -j && cmake --install $build_dir
-
-  cp $build_dir/src/python/libmneme.so $src_dir/python/mneme/
-}
-
 
 build_hypre(){
   BASE_DIR=$1
@@ -235,13 +157,6 @@ else
 fi
 
 if [[ "$with_mneme" == "on" ]]; then
-  # echo "Building SPDLOG"
-  # build_spdlog ${BASE_DIR} ${LOCAL_DIR} v1.15.0 
-  # echo "Building PROTEUS"
-  # build_proteus ${BASE_DIR} ${LOCAL_DIR} features/mneme-integrations 
-  # echo "Building MNEME"
-  # build_mneme ${BASE_DIR} ${LOCAL_DIR} develop
-
   if [[ ! -d "mneme-env" || ! -f "./mneme-env/bin/activate" ]]; then
     python3 -m venv mneme-env
     echo "Created virtual env $(pwd)/mneme-env"
@@ -253,9 +168,10 @@ if [[ "$with_mneme" == "on" ]]; then
     git clone --depth 1 --branch $mneme_version https://github.com/Olympus-HPC/Mneme.git
   fi
 
+  # pip install --upgrade pip
   pip install -e Mneme
   mkdir -p ${LOCAL_DIR}/lib64
-  
+
   echo "Copying Mneme libs to ${LOCAL_DIR}/lib64"
   cp -r Mneme/build/lib/lib64/*.so ${LOCAL_DIR}/lib64
   cp Mneme/build/src/python/libmneme.so Mneme/python/mneme/
@@ -268,5 +184,15 @@ build_metis ${BASE_DIR} ${LOCAL_DIR}
 echo "Building MFEM"
 build_mfem ${BASE_DIR} ${LOCAL_DIR} v4.7 $with_mneme
 
-echo "Building Laghos"
-LDFLAGS=${LOCAL_DIR}/lib64/libmneme_shallow.so make
+sed -i 's|^MFEM_DIR ?= \.\./mfem$|MFEM_DIR ?= deps/mfem/|' makefile
+sed -i 's/^LAGHOS_LIBS = \$(MFEM_LIBS) \$(MFEM_EXT_LIBS)$/LAGHOS_LIBS = \$(MFEM_LIBS) \$(MFEM_EXT_LIBS) -lHYPRE -lrocsparse -lrocrand/' makefile
+sed -i 's/cd \$(<D); \$(CCC) -c \$(<F)/cd \$(<D); \$(CCC) -fgpu-rdc -c \$(<F)/' makefile
+sed -i 's/\$(MFEM_CXX) \$(MFEM_LINK_FLAGS) -o laghos/\$(MFEM_CXX) \$(MFEM_LINK_FLAGS) -fgpu-rdc --hip-link -o laghos/' makefile
+
+if [[ "$with_mneme" == "on" ]]; then
+  echo "Building Laghos with Mneme"
+  LDFLAGS=${LOCAL_DIR}/lib64/libmneme_shallow.so make -j4
+else
+  echo "Building Laghos without Mneme"
+  make -j4
+fi
