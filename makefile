@@ -63,7 +63,7 @@ PREFIX ?= ./bin
 INSTALL = /usr/bin/install
 
 # Use the MFEM source, build, or install directory
-MFEM_DIR ?= deps/mfem/
+MFEM_DIR ?= ../mfem
 CONFIG_MK = $(MFEM_DIR)/config/config.mk
 ifeq ($(wildcard $(CONFIG_MK)),)
    CONFIG_MK = $(MFEM_DIR)/share/mfem/config.mk
@@ -92,7 +92,7 @@ LAGHOS_FLAGS = $(CPPFLAGS) $(CXXFLAGS) $(MFEM_INCFLAGS)
 EXTRA_INC_DIR = $(or $(wildcard $(MFEM_DIR)/include/mfem),$(MFEM_DIR))
 CCC = $(strip $(CXX) $(LAGHOS_FLAGS) $(if $(EXTRA_INC_DIR),-I$(EXTRA_INC_DIR)))
 
-LAGHOS_LIBS = $(MFEM_LIBS) $(MFEM_EXT_LIBS) -lHYPRE -lrocsparse -lrocrand
+LAGHOS_LIBS = $(MFEM_LIBS) $(MFEM_EXT_LIBS)
 LIBS = $(strip $(LAGHOS_LIBS) $(LDFLAGS))
 
 SOURCE_FILES = $(sort $(wildcard *.cpp))
@@ -106,10 +106,10 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .SUFFIXES: .cpp .o
 .cpp.o:
-	cd $(<D); $(CCC) -fgpu-rdc -c $(<F)
+	cd $(<D); $(CCC) -c $(<F)
 
 laghos: $(OBJECT_FILES) $(CONFIG_MK) $(MFEM_LIB_FILE)
-	$(MFEM_CXX) $(MFEM_LINK_FLAGS) -fgpu-rdc --hip-link -o laghos $(OBJECT_FILES) $(LIBS)
+	$(MFEM_CXX) $(MFEM_LINK_FLAGS) -o laghos $(OBJECT_FILES) $(LIBS)
 
 all:;@$(MAKE) -j $(NPROC) laghos
 
@@ -152,12 +152,8 @@ help:
 
 status info:
 	$(info MFEM_DIR     = $(MFEM_DIR))
-	$(info MFEM_BUILD_DIR     = $(MFEM_BUILD_DIR))
 	$(info LAGHOS_FLAGS = $(LAGHOS_FLAGS))
 	$(info LAGHOS_LIBS  = $(value LAGHOS_LIBS))
-	$(info LAGHOS_LIBS  = $(value LAGHOS_LIBS))
-	$(info MFEM_LIBS = $(MFEM_LIBS))
-	$(info MFEM_EXT_LIBS = $(MFEM_EXT_LIBS))
 	$(info PREFIX       = $(PREFIX))
 	@true
 
