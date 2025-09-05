@@ -218,6 +218,9 @@ build_llvm () {
         bash ./${MINICONDA_DIR}/miniconda.sh -b -u -p ./${MINICONDA_DIR}
         rm ./${MINICONDA_DIR}/miniconda.sh
         source ./${MINICONDA_DIR}/bin/activate
+        # conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+        # conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+        export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
         conda create -y -n mneme -c conda-forge \
             python=3.10 clang=18.1.8 clangxx=18.1.8 llvmdev=18.1.8 lit=18.1.8 openblas==0.3.21 libopenblas==0.3.21
     else
@@ -258,6 +261,12 @@ if [[ "$SYS_TYPE" == "blueos_3_ppc64le_ib_p9" ]]; then
     ml load cmake/3.23
     ml load cuda/12.2
     export CUDA_ARCH="sm_70"
+elif [[ "$SYS_TYPE" == "toss_4_x86_64_ib" ]]; then
+    # Matrix
+    ml load gcc/11.2.1
+    ml load cmake/3.23
+    ml load cuda/12.2
+    export CUDA_ARCH="sm_90"
 elif [[ "$SYS_TYPE" == "toss_4_x86_64_ib_cray" ]]; then
     # module load cmake/3.29.2
     # module load rocm/6.3

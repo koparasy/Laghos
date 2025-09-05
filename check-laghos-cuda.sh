@@ -4,12 +4,22 @@ set -e
 
 # Lassen only
 if [[ "$SYS_TYPE" == "blueos_3_ppc64le_ib_p9" ]]; then
-    # source /etc/profile.d/z00_lmod.sh
+    source /etc/profile.d/z00_lmod.sh
     ml load gcc/11.2.1
     ml load cmake/3.23
     ml load cuda/12.2
-else
-    echo "$SYS_TYPE is not supported by this script"
+    export CUDA_ARCH="sm_70"
+elif [[ "$SYS_TYPE" == "toss_4_x86_64_ib" ]]; then
+    # Matrix
+    ml load gcc/11.2.1
+    ml load cmake/3.23
+    ml load cuda/12.2
+    export CUDA_ARCH="sm_90"
+elif [[ "$SYS_TYPE" == "toss_4_x86_64_ib_cray" ]]; then
+    # module load cmake/3.29.2
+    # module load rocm/6.3
+    # module load rocmcc/6.3.1-cce-18.0.1h-magic
+    echo "ROCM is not supported by this script"
     exit 1
 fi
 
