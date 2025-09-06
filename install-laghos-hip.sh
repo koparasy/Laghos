@@ -168,8 +168,9 @@ if [[ "$with_mneme" == "on" ]]; then
     git clone --depth 1 --branch $mneme_version https://github.com/Olympus-HPC/Mneme.git
   fi
 
-  # pip install --upgrade pip
-  pip install -e Mneme
+  pip install --upgrade pip
+  pip install ./Mneme
+  pip install flux-python # Useful to run Mneme with Flux
   mkdir -p ${LOCAL_DIR}/lib64
 
   echo "Copying Mneme libs to ${LOCAL_DIR}/lib64"
